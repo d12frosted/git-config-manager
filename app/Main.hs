@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE TemplateHaskell    #-}
 
-module Main where
+module Main (main) where
 
 --------------------------------------------------------------------------------
 -- * Internal imports
@@ -42,7 +42,7 @@ data AppOptions = AppOptions { optVerbose :: Bool
                              , optCommand :: AppCmd }
                  deriving Show
 
-data AppCmd = AppCmdList | AppCmdSet String deriving Show
+data AppCmd = AppCmdList | AppCmdGet | AppCmdSet String deriving Show
 
 type App a = AppConfig -> GitConfig -> IO a
 
@@ -90,6 +90,7 @@ run (AppOptions verbose fileStrM cmd) =
 
 runCmd :: AppCmd -> AppConfig -> GitConfig -> IO ()
 runCmd AppCmdList = listConfgs
+runCmd AppCmdGet = getCurrentScheme
 runCmd (AppCmdSet scheme) = setConfigs (pack scheme)
 
 --------------------------------------------------------------------------------
@@ -97,6 +98,12 @@ runCmd (AppCmdSet scheme) = setConfigs (pack scheme)
 
 listConfgs :: App ()
 listConfgs _ (GitConfig cfg) = mapM_ putTxtLn $ keys cfg
+
+--------------------------------------------------------------------------------
+-- ** Get current scheme
+
+getCurrentScheme :: App ()
+getCurrentScheme _ _ = getGitConfig "gcm" "scheme" >>= putTxt
 
 --------------------------------------------------------------------------------
 -- ** Set configurations
@@ -121,14 +128,18 @@ configParser =
   AppOptions <$>
     switch (long "verbose" <> help "Enable verbose mode") <*>
     optional (strOption $ long "config-file" <> metavar "PATH" <> help "Specify configuration file path") <*>
-    subparser (command "list" (info (pure AppCmdList) (progDesc "List all available configuration presets")) <>
-              command "set" (info (AppCmdSet <$> argument str (metavar "SCHEME")) (progDesc "Set up configurations by scheme")))
+    subparser (command "list" (info (pure AppCmdList) (progDesc "List all available configuration schemes")) <>
+               command "get" (info (pure AppCmdGet) (progDesc "Get name of currently used scheme")) <>
+               command "set" (info (AppCmdSet <$> argument str (metavar "SCHEME")) (progDesc "Set up configurations by scheme")))
 
 --------------------------------------------------------------------------------
 -- * Git configurations
 
 setGitConfig :: (MonadIO m) => Text -> Text -> Text -> m ()
 setGitConfig section key val = Turtle.procs "git" ["config", section <> "." <> key, val] Turtle.empty
+
+getGitConfig :: (MonadIO m) => Text -> Text -> m Text
+getGitConfig section key = snd <$> Turtle.procStrict "git" ["config", section <> "." <> key] Turtle.empty
 
 --------------------------------------------------------------------------------
 -- * Helpers

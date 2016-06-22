@@ -1,0 +1,54 @@
+* ~git-config-manager~
+
+=git-config-manager= is a tool for setting git configurations by schemes described
+in =json= file. It is useful in situations when you can specify different sets of
+configurations for different repositories (like work, personal etc) and want to
+avoid typing configurations by hand for every single repository.
+
+For example, consider following content in
+~$XDG_CONFIG_HOME/git/git-config-manager.json~.
+
+#+BEGIN_SRC json
+{
+  "personal": {
+    "user": {
+      "name": "The Donkey",
+      "email": "mybossdontknowme@protonmail.ch",
+      "signingkey": "ABCDEFGH"
+    },
+    "pull": {
+      "rebase": "true"
+    }
+  },
+  "work": {
+    "user": {
+      "name": "Mr. Doe",
+      "email": "slave012345@corp.me",
+      "signingkey": "ABCDEFGH"
+    }
+  }
+}
+#+END_SRC
+
+You can navigate to any repository and call ~git-config-manager set personal~ to
+set all configurations under ~personal~ scheme.
+
+** Interface
+
+#+BEGIN_EXAMPLE
+$ git-config-manager --help
+Git configuration manager
+
+Usage: git-config-manager [--verbose] [--config-file PATH] COMMAND
+  Manage git configurations and switch between them with ease
+
+Available options:
+  -h,--help                Show this help text
+  --verbose                Enable verbose mode
+  --config-file PATH       Specify configuration file path
+
+Available commands:
+  list                     List all available configuration schemes
+  get                      Get name of currently used scheme
+  set                      Set up configurations by scheme
+#+END_EXAMPLE

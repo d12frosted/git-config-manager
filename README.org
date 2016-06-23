@@ -52,3 +52,13 @@ Available commands:
   get                      Get name of currently used scheme
   set                      Set up configurations by scheme
 #+END_EXAMPLE
+
+** Install
+
+The easiest way to install ~git-config-manager~ is to use [[https://github.com/commercialhaskell/stack][stack]].
+
+#+BEGIN_SRC shell
+$ git clone https://github.com/d12frosted/git-config-manager.git
+$ cd git-config-manager
+$ stack install
+#+END_SRC

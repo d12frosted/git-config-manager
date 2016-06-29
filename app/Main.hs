@@ -52,10 +52,8 @@ data AppConfig = AppConfig { appVerbose    :: Bool
 --------------------------------------------------------------------------------
 -- ** Git configuration
 
-type SchemeMap = Map.HashMap Text -- scheme name
-                             (Map.HashMap Text -- section
-                                          (Map.HashMap Text -- key
-                                                       Text))
+type ConfigMap = (Map.HashMap Text (Map.HashMap Text Text))
+type SchemeMap = Map.HashMap Text ConfigMap
 data GitConfig = GitConfig SchemeMap deriving Show
 
 $(deriveJSON defaultOptions ''GitConfig)

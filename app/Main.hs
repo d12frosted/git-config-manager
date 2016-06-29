@@ -97,13 +97,13 @@ runCmd (AppCmdSet scheme) = setConfigs (pack scheme)
 -- ** List configurations
 
 listConfgs :: App ()
-listConfgs _ (GitConfig cfg) = mapM_ putTxtLn $ keys cfg
+listConfgs _ (GitConfig cfg) = mapM_ Txt.putStrLn $ keys cfg
 
 --------------------------------------------------------------------------------
 -- ** Get current scheme
 
 getCurrentScheme :: App ()
-getCurrentScheme _ _ = getGitConfig "gcm" "scheme" >>= putTxt
+getCurrentScheme _ _ = getGitConfig "gcm" "scheme" >>= Txt.putStr
 
 --------------------------------------------------------------------------------
 -- ** Set configurations
@@ -113,7 +113,7 @@ setConfigs scheme (AppConfig _ path) (GitConfig cfg) =
   case Map.lookup scheme cfg of
     Nothing -> throwM $ GCMSchemeNotFound path (unpack scheme)
     Just cfgs ->
-      do traverseWithKey (traverseWithKey . setGitConfig) cfgs
+      do _ <- traverseWithKey (traverseWithKey . setGitConfig) cfgs
          setGitConfig "gcm" "scheme" scheme
 
 --------------------------------------------------------------------------------
@@ -163,21 +163,3 @@ getDefaultGitConfigPath = parseFilePath "$XDG_CONFIG_HOME/git/git-config-manager
 prettyBool :: Bool -> Text
 prettyBool True = "true"
 prettyBool False = "false"
-
---------------------------------------------------------------------------------
--- ** Print helpers
-
-putStrLn :: (MonadIO m) => String -> m ()
-putStrLn = liftIO . Prelude.putStrLn
-
-putStr :: (MonadIO m) => String -> m ()
-putStr = liftIO . Prelude.putStr
-
-print :: (MonadIO m, Show a) => a -> m ()
-print = liftIO . Prelude.print
-
-putTxtLn :: (MonadIO m) => Text -> m ()
-putTxtLn = liftIO . Txt.putStrLn
-
-putTxt :: (MonadIO m) => Text -> m ()
-putTxt = liftIO . Txt.putStr

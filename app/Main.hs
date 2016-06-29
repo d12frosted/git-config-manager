@@ -12,25 +12,21 @@ module Main (main) where
 -- * External imports
 
 import           Control.Exception
-import           Control.Monad.Catch          (MonadThrow (..))
+import           Control.Monad.Catch    (MonadThrow (..))
 import           Control.Monad.IO.Class
 import           Data.Aeson
 import           Data.Aeson.TH
-import qualified Data.Aeson.Types             as Aeson
-import           Data.ByteString.Lazy         (readFile)
-import           Data.HashMap.Strict          as Map
-import           Data.Text                    (Text, pack, unpack)
-import qualified Data.Text.IO                 as Txt (putStr, putStrLn)
+import           Data.ByteString.Lazy   (readFile)
+import           Data.HashMap.Strict    as Map
+import           Data.String            (IsString (..))
+import           Data.Text              (Text, pack, unpack)
+import qualified Data.Text.IO           as Txt (putStr, putStrLn)
 import           Data.Typeable
 import           Options.Applicative
-import           Options.Applicative.Common
-import           Options.Applicative.Internal
 import           Path.Parse
-import           Prelude                      hiding (print, putStr, putStrLn,
-                                               readFile)
-import qualified Prelude                      (print, putStr, putStrLn)
+import           Prelude                hiding (print, putStr, putStrLn,
+                                         readFile)
 import qualified Turtle
-import Data.String (IsString(..))
 
 --------------------------------------------------------------------------------
 -- * Data types

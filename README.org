@@ -6,7 +6,8 @@ configurations for different repositories (like work, personal etc) and want to
 avoid typing configurations by hand for every single repository.
 
 For example, consider following content in
-~$XDG_CONFIG_HOME/git/git-config-manager.json~.
+~$XDG_CONFIG_HOME/git/git-config-manager.json~ (which is loaded by default if you
+don't override it using =--config-file= option).
 
 #+BEGIN_SRC json
 {

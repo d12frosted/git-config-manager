@@ -37,19 +37,19 @@ main = execParser opts >>= run
 
 run :: AppOptions -> IO ()
 run (AppOptions verbose fileStrM cmd) =
-  do path <- getGitConfigPath fileStrM
-     gitConfig <- loadGitConfig path
+  do path <- Git.getConfigPath fileStrM
+     gitConfig <- Git.loadConfig path
      runCmd cmd (AppConfig verbose path) gitConfig
 
 runCmd :: AppCmd -> AppConfig -> GitConfig -> IO ()
 runCmd AppCmdList _ (GitConfig cfg) = mapM_ T.putStrLn $ keys cfg
-runCmd AppCmdGet _ _ = getGitConfig "gcm" "scheme" >>= T.putStr
+runCmd AppCmdGet _ _ = Git.get "gcm" "scheme" >>= T.putStr
 runCmd (AppCmdSet scheme) (AppConfig _ path) (GitConfig cfg) =
   case Map.lookup (pack scheme) cfg of
     Nothing -> throwM $ GCMSchemeNotFound path scheme
     Just cfgs ->
-      do _ <- traverseWithKey (traverseWithKey . setGitConfig) cfgs
-         setGitConfig "gcm" "scheme" (String . pack $ scheme)
+      do _ <- traverseWithKey (traverseWithKey . Git.set) cfgs
+         Git.set "gcm" "scheme" (String . pack $ scheme)
 
 --------------------------------------------------------------------------------
 -- * Parsers

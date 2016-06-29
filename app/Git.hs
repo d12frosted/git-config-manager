@@ -3,7 +3,12 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE TemplateHaskell    #-}
 
-module Git where
+module Git ( GitConfig (..)
+           , set
+           , get
+           , loadConfig
+           , getConfigPath
+           ) where
 
 --------------------------------------------------------------------------------
 -- * Internal imports
@@ -39,33 +44,33 @@ $(deriveJSON defaultOptions ''GitConfig)
 --------------------------------------------------------------------------------
 -- * Operations
 
-setGitConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> Value -> m ()
-setGitConfig section key val =
+set :: (MonadThrow m, MonadIO m) => Text -> Text -> Value -> m ()
+set section key val =
   case extractConfig val of
     Just cfg -> Turtle.procs "git" ["config", section <> "." <> key, cfg] Turtle.empty
     Nothing  -> throwM $ GCMConfigTypeNotSupported (unpack section) (unpack key) val
 
-getGitConfig :: (MonadIO m) => Text -> Text -> m Text
-getGitConfig section key = snd <$> Turtle.procStrict "git" ["config", section <> "." <> key] Turtle.empty
+get :: (MonadIO m) => Text -> Text -> m Text
+get section key = snd <$> Turtle.procStrict "git" ["config", section <> "." <> key] Turtle.empty
 
 --------------------------------------------------------------------------------
 -- * Loading
 
-loadGitConfig :: (MonadThrow m, MonadIO m) => Path Abs File -> m GitConfig
-loadGitConfig path =
+loadConfig :: (MonadThrow m, MonadIO m) => Path Abs File -> m GitConfig
+loadConfig path =
   do contents <- liftIO . readFile . toFilePath $ path
      case eitherDecode' contents of
        Left msg -> throwM $ GCMParseError path msg
        Right cfg -> return cfg
 
-getGitConfigPath :: (MonadThrow m, MonadIO m) => Maybe String -> m (Path Abs File)
-getGitConfigPath fileStrM =
+getConfigPath :: (MonadThrow m, MonadIO m) => Maybe String -> m (Path Abs File)
+getConfigPath fileStrM =
   case fileStrM of
     Just fileStr -> parseFilePath . pack $ fileStr
-    Nothing -> getDefaultGitConfigPath
+    Nothing -> getDefaultConfigPath
 
-getDefaultGitConfigPath :: (MonadThrow m, MonadIO m) => m (Path Abs File)
-getDefaultGitConfigPath = parseFilePath "$XDG_CONFIG_HOME/git/git-config-manager.json"
+getDefaultConfigPath :: (MonadThrow m, MonadIO m) => m (Path Abs File)
+getDefaultConfigPath = parseFilePath "$XDG_CONFIG_HOME/git/git-config-manager.json"
 
 --------------------------------------------------------------------------------
 -- * Helpers

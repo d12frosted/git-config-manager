@@ -30,6 +30,7 @@ import           Prelude                      hiding (print, putStr, putStrLn,
                                                readFile)
 import qualified Prelude                      (print, putStr, putStrLn)
 import qualified Turtle
+import Data.String (IsString(..))
 
 --------------------------------------------------------------------------------
 -- * Data types
@@ -52,7 +53,7 @@ data AppConfig = AppConfig { appVerbose    :: Bool
 --------------------------------------------------------------------------------
 -- ** Git configuration
 
-type ConfigMap = (Map.HashMap Text (Map.HashMap Text Text))
+type ConfigMap = (Map.HashMap Text Object)
 type SchemeMap = Map.HashMap Text ConfigMap
 data GitConfig = GitConfig SchemeMap deriving Show
 
@@ -63,7 +64,8 @@ $(deriveJSON defaultOptions ''GitConfig)
 
 data GCMException =
   GCMParseError (Path Abs File) String |
-  GCMSchemeNotFound (Path Abs File) String
+  GCMSchemeNotFound (Path Abs File) String |
+  GCMConfigTypeNotSupported String String Value
   deriving (Typeable)
 
 instance Exception GCMException
@@ -73,6 +75,8 @@ instance Show GCMException where
     "Could not parse git configurations from '" ++ toFilePath path ++ "', with error: " ++ msg
   show (GCMSchemeNotFound path scheme) =
     "Could not find scheme '" ++ scheme ++ "' in '" ++ toFilePath path ++ "'"
+  show (GCMConfigTypeNotSupported section key val) =
+    "Found value of unsupported type '" ++ showValueType val ++ "' at '" ++ section ++ "." ++ key ++ "'"
 
 --------------------------------------------------------------------------------
 -- * Application
@@ -112,7 +116,7 @@ setConfigs scheme (AppConfig _ path) (GitConfig cfg) =
     Nothing -> throwM $ GCMSchemeNotFound path (unpack scheme)
     Just cfgs ->
       do _ <- traverseWithKey (traverseWithKey . setGitConfig) cfgs
-         setGitConfig "gcm" "scheme" scheme
+         setGitConfig "gcm" "scheme" (String scheme)
 
 --------------------------------------------------------------------------------
 -- * Parsers
@@ -133,8 +137,11 @@ configParser =
 --------------------------------------------------------------------------------
 -- * Git configurations
 
-setGitConfig :: (MonadIO m) => Text -> Text -> Text -> m ()
-setGitConfig section key val = Turtle.procs "git" ["config", section <> "." <> key, val] Turtle.empty
+setGitConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> Value -> m ()
+setGitConfig section key val =
+  case extractConfig val of
+    Just cfg -> Turtle.procs "git" ["config", section <> "." <> key, cfg] Turtle.empty
+    Nothing  -> throwM $ GCMConfigTypeNotSupported (unpack section) (unpack key) val
 
 getGitConfig :: (MonadIO m) => Text -> Text -> m Text
 getGitConfig section key = snd <$> Turtle.procStrict "git" ["config", section <> "." <> key] Turtle.empty
@@ -158,6 +165,22 @@ getGitConfigPath fileStrM =
 getDefaultGitConfigPath :: (MonadThrow m, MonadIO m) => m (Path Abs File)
 getDefaultGitConfigPath = parseFilePath "$XDG_CONFIG_HOME/git/git-config-manager.json"
 
-prettyBool :: Bool -> Text
+extractConfig :: Value -> Maybe Text
+extractConfig (String val) = Just val
+extractConfig (Number val) = Just . pack . show $ val
+extractConfig (Bool val) = Just . prettyBool $ val
+extractConfig Null = Just "null"
+extractConfig _ = Nothing
+
+prettyBool :: IsString a => Bool -> a
 prettyBool True = "true"
 prettyBool False = "false"
+
+showValueType :: IsString a => Value -> a
+showValueType val = case val of
+  Object _ -> "object"
+  Array _ -> "array"
+  String _ -> "string"
+  Number _ -> "number"
+  Bool _ -> "bool"
+  Null -> "null"

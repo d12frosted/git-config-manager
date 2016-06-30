@@ -5,6 +5,7 @@
 
 module Git ( GitConfig (..)
            , set
+           , unset
            , get
            , loadConfig
            , getConfigPath
@@ -46,9 +47,19 @@ $(deriveJSON defaultOptions ''GitConfig)
 
 set :: (MonadThrow m, MonadIO m) => Text -> Text -> Value -> m ()
 set section key val =
-  case extractConfig val of
-    Just cfg -> Turtle.procs "git" ["config", section <> "." <> key, cfg] Turtle.empty
-    Nothing  -> throwM $ GCMConfigTypeNotSupported (unpack section) (unpack key) val
+  case val of
+    Null -> unset section key
+    _ -> case extractConfig val of
+      Just cfg -> configProcs [section <> "." <> key, cfg]
+      Nothing  -> throwM $ GCMConfigTypeNotSupported (unpack section) (unpack key) val
+
+unset :: (MonadThrow m, MonadIO m) => Text -> Text -> m ()
+unset section key =
+  do configProcs ["--unset", section <> "." <> key]
+     (res, _) <- Turtle.procStrict "git" ["config", "--get-regexp", "^" <> section <> "\\."] Turtle.empty
+     case res of
+       Turtle.ExitFailure 1 -> configProcs ["--remove-section", section]
+       _ -> return ()
 
 get :: (MonadIO m) => Text -> Text -> m Text
 get section key = snd <$> Turtle.procStrict "git" ["config", section <> "." <> key] Turtle.empty
@@ -75,11 +86,13 @@ getDefaultConfigPath = parseFilePath "$XDG_CONFIG_HOME/git/git-config-manager.js
 --------------------------------------------------------------------------------
 -- * Helpers
 
+configProcs :: (MonadThrow m, MonadIO m) => [Text] -> m ()
+configProcs args = Turtle.procs "git" ("config" : args) Turtle.empty
+
 extractConfig :: Value -> Maybe Text
 extractConfig (String val) = Just val
 extractConfig (Number val) = Just . pack . show $ val
 extractConfig (Bool val) = Just . prettyBool $ val
-extractConfig Null = Just "null"
 extractConfig _ = Nothing
 
 prettyBool :: IsString a => Bool -> a

@@ -1,5 +1,4 @@
 * ~git-config-manager~
-
 =git-config-manager= is a tool for setting git configurations by schemes described
 in =json= file. It is useful in situations when you can specify different sets of
 configurations for different repositories (like work, personal etc) and want to
@@ -16,9 +15,11 @@ don't override it using =--config-file= option).
       "name": "The Donkey",
       "email": "mybossdontknowme@protonmail.ch",
       "signingkey": "ABCDEFGH"
-    },
+    }
+  },
+  "my_project": {
     "pull": {
-      "rebase": "true"
+      "rebase": true
     }
   },
   "work": {
@@ -26,6 +27,9 @@ don't override it using =--config-file= option).
       "name": "Mr. Doe",
       "email": "slave012345@corp.me",
       "signingkey": "ABCDEFGH"
+    },
+    "pull": {
+      "rebase": null
     }
   }
 }
@@ -33,6 +37,10 @@ don't override it using =--config-file= option).
 
 You can navigate to any repository and call ~git-config-manager set personal~ to
 set all configurations under ~personal~ scheme.
+
+Note that supported value types are strings, numbers and booleans. If you set
+the value to =null=, it will be unset (and in case corresponding section is empty
+it will be also removed).
 
 ** Interface
 

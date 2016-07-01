@@ -15,10 +15,10 @@ import           Types
 
 import           Control.Monad.Catch (MonadThrow (..))
 import           Data.HashMap.Strict as Map
-import           Data.Text           (unpack, pack, Text)
+import           Data.Text           (Text, pack, unpack)
 import qualified Data.Text.IO        as T (putStr, putStrLn)
 import           Options.Applicative
-import           Prelude
+import           BasePrelude
 
 --------------------------------------------------------------------------------
 -- * Data types
@@ -42,21 +42,21 @@ main = execParser opts >>= run
 
 run :: AppOptions -> IO ()
 run (AppOptions verbose pathM cmd) =
-  do path <- Git.getConfigPath pathM
-     gitConfig <- Git.loadConfig path
+  do path <- getConfigPath pathM
+     gitConfig <- loadConfig path
      runCmd cmd (AppConfig verbose path) gitConfig
 
 runCmd :: AppCmd -> AppConfig -> GitConfig -> IO ()
 runCmd AppCmdList _ (GitConfig cfg) = mapM_ T.putStrLn $ keys cfg
-runCmd AppCmdGet _ _ = Git.get "gcm" "scheme" >>= T.putStr
+runCmd AppCmdGet _ _ = getConfig "gcm" "scheme" >>= T.putStr
 runCmd (AppCmdSet scheme) appCfg cfg =
   mapScheme scheme appCfg cfg $ \cfgs ->
-    do _ <- traverseWithKey (traverseWithKey . Git.set) cfgs
-       Git.addScheme scheme
+    do _ <- traverseWithKey (traverseWithKey . setConfig) cfgs
+       addScheme scheme
 runCmd (AppCmdUnset scheme) appCfg cfg =
   mapScheme scheme appCfg cfg $ \cfgs ->
-    do _ <- traverseWithKey (traverseWithKey . (-$) Git.unset) cfgs
-       Git.removeScheme scheme
+    do _ <- traverseWithKey (traverseWithKey . (-$) unsetConfig) cfgs
+       removeScheme scheme
 
 --------------------------------------------------------------------------------
 -- * Parsers

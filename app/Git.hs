@@ -6,9 +6,9 @@
 module Git ( GitConfig (..)
            , SchemeMap
            , ConfigMap
-           , set
-           , unset
-           , get
+           , setConfig
+           , unsetConfig
+           , getConfig
            , addScheme
            , removeScheme
            , loadConfig
@@ -23,23 +23,22 @@ import           Types
 --------------------------------------------------------------------------------
 -- * External imports
 
-import           Control.Applicative    ((<|>))
-import           Control.Monad.Catch    (MonadThrow (..))
-import           Control.Monad.IO.Class
+import           Control.Applicative  ((<|>))
+import           Control.Monad.Catch  (MonadThrow (..))
 import           Data.Aeson
 import           Data.Aeson.TH
 import           Data.Attoparsec.Text
-import           Data.ByteString.Lazy   (readFile)
-import           Data.HashMap.Strict    ()
-import           Data.HashMap.Strict    as Map
-import           Data.HashSet           ()
-import           Data.HashSet           as Set
+import           Data.ByteString.Lazy (readFile)
+import           Data.HashMap.Strict  ()
+import           Data.HashMap.Strict  as Map
+import           Data.HashSet         ()
+import           Data.HashSet         as Set
 import           Data.Monoid
-import           Data.String            (IsString (..))
-import           Data.Text              (Text, intercalate, pack, unpack)
+import           Data.String          (IsString (..))
+import           Data.Text            (Text, intercalate, pack, unpack)
+import           MTLPrelude
 import           Path.Parse
-import           Prelude                hiding (print, putStr, putStrLn,
-                                         readFile)
+import           Prelude              hiding (print, putStr, putStrLn, readFile)
 import qualified Turtle
 
 --------------------------------------------------------------------------------
@@ -54,31 +53,31 @@ $(deriveJSON defaultOptions ''GitConfig)
 --------------------------------------------------------------------------------
 -- * Operations
 
-set :: (MonadThrow m, MonadIO m) => Text -> Text -> Value -> m ()
-set section key val =
+setConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> Value -> m ()
+setConfig section key val =
   case val of
-    Null -> unset section key
+    Null -> unsetConfig section key
     _ -> case extractConfig val of
       Just cfg -> configProcs [section <> "." <> key, cfg]
       Nothing  -> throwM $ GCMConfigTypeNotSupported (unpack section) (unpack key) val
 
-unset :: (MonadThrow m, MonadIO m) => Text -> Text -> m ()
-unset section key =
+unsetConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> m ()
+unsetConfig section key =
   do configProcs ["--unset", section <> "." <> key]
      (res, _) <- Turtle.procStrict "git" ["config", "--get-regexp", "--local", "^" <> section <> "\\."] Turtle.empty
      case res of
        Turtle.ExitFailure 1 -> configProcs ["--remove-section", section]
        _ -> return ()
 
-get :: (MonadIO m) => Text -> Text -> m Text
-get section key = snd <$> Turtle.procStrict "git" ["config", section <> "." <> key] Turtle.empty
+getConfig :: (MonadIO m) => Text -> Text -> m Text
+getConfig section key = snd <$> Turtle.procStrict "git" ["config", section <> "." <> key] Turtle.empty
 
 --------------------------------------------------------------------------------
 -- ** Scheme
 
 getSchemes :: (MonadThrow m, MonadIO m) => m (HashSet Text)
 getSchemes =
-  do raw <- get "gcm" "scheme"
+  do raw <- getConfig "gcm" "scheme"
      case parseOnly pSchemes raw of
        Right val -> return $ Set.fromList val
        Left err -> throwM $ GCMSchemesParseError err
@@ -94,7 +93,7 @@ removeScheme scheme =
      setSchemes $ Set.delete scheme schemes
 
 setSchemes :: (MonadThrow m, MonadIO m) => HashSet Text -> m ()
-setSchemes = set "gcm" "scheme" . String . intercalate ", " . Set.toList
+setSchemes = setConfig "gcm" "scheme" . String . intercalate ", " . Set.toList
 
 pScheme :: Parser Text
 pScheme = pack <$> many1 (letter <|> digit)

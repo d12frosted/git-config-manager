@@ -24,6 +24,8 @@ executable git-config-manager
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
+                     , base-prelude >= 1.0
+                     , mtl-prelude >= 2.0
                      , aeson >= 0.11.2
                      , attoparsec >= 0.13
                      , bytestring >= 0.10.6.0
@@ -33,7 +35,6 @@ executable git-config-manager
                      , optparse-applicative >= 0.12.1
                      , path >= 0.5
                      , text >= 1.2
-                     , transformers >= 0.4
                      , turtle >= 1.2.8
                      , unordered-containers >= 0.2.7.1
   default-language:    Haskell2010

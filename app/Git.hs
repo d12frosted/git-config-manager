@@ -37,7 +37,7 @@ import qualified Turtle
 --------------------------------------------------------------------------------
 -- * Operations
 
-setConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> Value -> m ()
+setConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> Value -> AppT m ()
 setConfig section key val =
   case val of
     Null -> unsetConfig section key
@@ -45,7 +45,7 @@ setConfig section key val =
       Just cfg -> configProcs [mkKey section key, cfg]
       Nothing  -> throwM $ GCMConfigTypeNotSupported (unpack section) (unpack key) val
 
-unsetConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> m ()
+unsetConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> AppT m ()
 unsetConfig section key =
   do configProcs ["--unset", mkKey section key]
      (res, _) <- Turtle.procStrict "git" ["config", "--get-regexp", "--local", "^" <> section <> "\\."] Turtle.empty
@@ -53,30 +53,30 @@ unsetConfig section key =
        Turtle.ExitFailure 1 -> configProcs ["--remove-section", section]
        _ -> return ()
 
-getConfig :: (MonadIO m) => Text -> Text -> m Text
+getConfig :: (MonadIO m) => Text -> Text -> AppT m Text
 getConfig section key = snd <$> Turtle.procStrict "git" ["config", mkKey section key] Turtle.empty
 
 --------------------------------------------------------------------------------
 -- ** Scheme
 
-getSchemes :: (MonadThrow m, MonadIO m) => m (HashSet Text)
+getSchemes :: (MonadThrow m, MonadIO m) => AppT m (HashSet Text)
 getSchemes =
   do raw <- getConfig "gcm" "scheme"
      case parseOnly pSchemes raw of
        Right val -> return $ Set.fromList val
        Left err -> throwM $ GCMSchemesParseError err
 
-addScheme :: (MonadThrow m, MonadIO m) => Text -> m ()
+addScheme :: (MonadThrow m, MonadIO m) => Text -> AppT m ()
 addScheme scheme =
   do schemes <- getSchemes
      setSchemes $ Set.insert scheme schemes
 
-removeScheme :: (MonadThrow m, MonadIO m) => Text -> m ()
+removeScheme :: (MonadThrow m, MonadIO m) => Text -> AppT m ()
 removeScheme scheme =
   do schemes <- getSchemes
      setSchemes $ Set.delete scheme schemes
 
-setSchemes :: (MonadThrow m, MonadIO m) => HashSet Text -> m ()
+setSchemes :: (MonadThrow m, MonadIO m) => HashSet Text -> AppT m ()
 setSchemes = setConfig "gcm" "scheme" . String . intercalate ", " . Set.toList
 
 pScheme :: Parser Text

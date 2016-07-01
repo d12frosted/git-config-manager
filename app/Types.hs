@@ -6,6 +6,7 @@
 module Types ( AppConfig (..)
              , App
              , AppIO
+             , AppT
              , GitConfig
              , SchemeMap
              , ConfigMap
@@ -38,8 +39,9 @@ data AppConfig = AppConfig { appVerbose    :: Bool
                            , appGitConfig  :: GitConfig
                            } deriving Show
 
-type App a = Reader AppConfig a
-type AppIO a = ReaderT AppConfig IO a
+type App a = AppT Identity a
+type AppIO a = AppT IO a
+type AppT m a = ReaderT AppConfig m a
 
 askGitConfig :: (Monad m) => ReaderT AppConfig m SchemeMap
 askGitConfig = asks (getConfig . appGitConfig)

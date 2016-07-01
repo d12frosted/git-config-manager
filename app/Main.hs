@@ -48,18 +48,14 @@ run (AppOptions verbose fileStrM cmd) =
 runCmd :: AppCmd -> AppConfig -> GitConfig -> IO ()
 runCmd AppCmdList _ (GitConfig cfg) = mapM_ T.putStrLn $ keys cfg
 runCmd AppCmdGet _ _ = Git.get "gcm" "scheme" >>= T.putStr
-runCmd (AppCmdSet scheme) (AppConfig _ path) cfg =
-  case lookupScheme scheme cfg of
-    Nothing -> throwM $ GCMSchemeNotFound path scheme
-    Just cfgs ->
-      do _ <- traverseWithKey (traverseWithKey . Git.set) cfgs
-         addScheme . pack $ scheme
-runCmd (AppCmdUnset scheme) (AppConfig _ path) cfg =
-  case lookupScheme scheme cfg of
-    Nothing -> throwM $ GCMSchemeNotFound path scheme
-    Just cfgs ->
-      do _ <- traverseWithKey (traverseWithKey . (-$) Git.unset) cfgs
-         Git.removeScheme . pack $ scheme
+runCmd (AppCmdSet scheme) appCfg cfg =
+  mapScheme appCfg scheme cfg $ \cfgs ->
+    do _ <- traverseWithKey (traverseWithKey . Git.set) cfgs
+       addScheme . pack $ scheme
+runCmd (AppCmdUnset scheme) appCfg cfg =
+  mapScheme appCfg scheme cfg $ \cfgs ->
+    do _ <- traverseWithKey (traverseWithKey . (-$) Git.unset) cfgs
+       Git.removeScheme . pack $ scheme
 
 --------------------------------------------------------------------------------
 -- * Parsers
@@ -74,7 +70,7 @@ configParser =
     switch (long "verbose" <> help "Enable verbose mode") <*>
     optional (strOption $ long "config-file" <> metavar "PATH" <> help "Specify configuration file path") <*>
     subparser (command "list" (info (pure AppCmdList) (progDesc "List all available configuration schemes")) <>
-               command "get" (info (pure AppCmdGet) (progDesc "Get name of currently used scheme")) <>
+               command "get" (info (pure AppCmdGet) (progDesc "Get comma-separated list of currently used schemes")) <>
                command "set" (info (AppCmdSet <$> argument str (metavar "SCHEME")) (progDesc "Set up configurations by scheme")) <>
                command "unset" (info (AppCmdUnset <$> argument str (metavar "SCHEME")) (progDesc "Unset configurations by scheme")))
 
@@ -83,6 +79,12 @@ configParser =
 
 lookupScheme :: String -> GitConfig -> Maybe ConfigMap
 lookupScheme scheme (GitConfig cfg) = Map.lookup (pack scheme) cfg
+
+mapScheme :: AppConfig -> String -> GitConfig -> (ConfigMap -> IO a) -> IO a
+mapScheme appCfg scheme cfg f =
+  case lookupScheme scheme cfg of
+    Nothing -> throwM $ GCMSchemeNotFound (appConfigFile appCfg) scheme
+    Just cfgs -> f cfgs
 
 (-$) :: (a -> b -> d) -> a -> b -> c -> d
 f -$ a = \b _ -> f a b

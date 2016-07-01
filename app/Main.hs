@@ -81,7 +81,7 @@ configParser =
 --------------------------------------------------------------------------------
 -- * Helpers
 
-lookupScheme :: (Monad m) => Text -> ReaderT AppConfig m (Maybe ConfigMap)
+lookupScheme :: (Monad m) => Text -> AppT m (Maybe ConfigMap)
 lookupScheme scheme = liftM (Map.lookup scheme) askGitConfig
 
 mapScheme :: Text -> (ConfigMap -> AppIO a) -> AppIO a

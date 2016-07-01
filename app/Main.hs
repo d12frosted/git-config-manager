@@ -27,7 +27,11 @@ data AppOptions = AppOptions { optVerbose :: Bool
                              , optCommand :: AppCmd }
                  deriving Show
 
-data AppCmd = AppCmdList | AppCmdGet | AppCmdSet String deriving Show
+data AppCmd = AppCmdList |
+              AppCmdGet |
+              AppCmdSet String |
+              AppCmdUnset String
+            deriving Show
 
 --------------------------------------------------------------------------------
 -- * Application
@@ -50,6 +54,12 @@ runCmd (AppCmdSet scheme) (AppConfig _ path) cfg =
     Just cfgs ->
       do _ <- traverseWithKey (traverseWithKey . Git.set) cfgs
          addScheme . pack $ scheme
+runCmd (AppCmdUnset scheme) (AppConfig _ path) cfg =
+  case lookupScheme scheme cfg of
+    Nothing -> throwM $ GCMSchemeNotFound path scheme
+    Just cfgs ->
+      do _ <- traverseWithKey (traverseWithKey . (-$) Git.unset) cfgs
+         Git.removeScheme . pack $ scheme
 
 --------------------------------------------------------------------------------
 -- * Parsers
@@ -65,7 +75,8 @@ configParser =
     optional (strOption $ long "config-file" <> metavar "PATH" <> help "Specify configuration file path") <*>
     subparser (command "list" (info (pure AppCmdList) (progDesc "List all available configuration schemes")) <>
                command "get" (info (pure AppCmdGet) (progDesc "Get name of currently used scheme")) <>
-               command "set" (info (AppCmdSet <$> argument str (metavar "SCHEME")) (progDesc "Set up configurations by scheme")))
+               command "set" (info (AppCmdSet <$> argument str (metavar "SCHEME")) (progDesc "Set up configurations by scheme")) <>
+               command "unset" (info (AppCmdUnset <$> argument str (metavar "SCHEME")) (progDesc "Unset configurations by scheme")))
 
 --------------------------------------------------------------------------------
 -- * Helpers

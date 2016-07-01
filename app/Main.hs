@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -16,10 +15,9 @@ import           Types
 -- * External imports
 
 import           BasePrelude         hiding (putStrLn)
-import           Control.Monad.Catch (MonadThrow (..))
 import           Data.HashMap.Strict as Map
 import           Data.HashSet        as Set
-import           Data.Text           (Text, pack, unpack)
+import           Data.Text           (Text, pack)
 import           Data.Text.IO        (putStrLn)
 import           MTLPrelude
 import           Options.Applicative
@@ -53,14 +51,8 @@ run (AppOptions verbose pathM cmd) =
 runCmd :: AppCmd -> AppIO ()
 runCmd AppCmdList = askGitConfig >>= lift . mapM_ putStrLn . keys
 runCmd AppCmdGet = getSchemes >>= lift . mapM_ putStrLn . Set.toList
-runCmd (AppCmdSet scheme) =
-  mapScheme scheme $ \cfgs ->
-    do _ <- traverseWithKey (traverseWithKey . setConfig) cfgs
-       addScheme scheme
-runCmd (AppCmdUnset scheme) =
-  mapScheme scheme $ \cfgs ->
-    do _ <- traverseWithKey (traverseWithKey . (-$) unsetConfig) cfgs
-       removeScheme scheme
+runCmd (AppCmdSet scheme) = setScheme scheme
+runCmd (AppCmdUnset scheme) = unsetScheme scheme
 
 --------------------------------------------------------------------------------
 -- * Parsers
@@ -81,20 +73,6 @@ configParser =
 
 --------------------------------------------------------------------------------
 -- * Helpers
-
-lookupScheme :: (Monad m) => Text -> AppT m (Maybe ConfigMap)
-lookupScheme scheme = liftM (Map.lookup scheme) askGitConfig
-
-mapScheme :: Text -> (ConfigMap -> AppIO a) -> AppIO a
-mapScheme scheme f =
-  lookupScheme scheme >>= \case
-    Nothing -> askConfigPath >>= throwM . GCMSchemeNotFound (unpack scheme)
-    Just cfgs -> f cfgs
-
-(-$) :: (a -> b -> d) -> a -> b -> c -> d
-f -$ a = \b _ -> f a b
-
-infixl 8 -$
 
 txtOption :: Mod OptionFields String -> Parser Text
 txtOption = fmap pack . strOption

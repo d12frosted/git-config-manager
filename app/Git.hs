@@ -1,9 +1,12 @@
-{-# LANGUAGE NoImplicitPrelude  #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Git ( setConfig
            , unsetConfig
            , getConfig
+           , setScheme
+           , unsetScheme
            , getSchemes
            , addScheme
            , removeScheme
@@ -19,20 +22,17 @@ import           Types
 --------------------------------------------------------------------------------
 -- * External imports
 
-import           Control.Applicative  ((<|>))
-import           Data.Aeson
+import           BasePrelude          hiding (print, putStr, putStrLn, readFile)
 import           Control.Monad.Catch  (MonadThrow (..))
+import           Data.Aeson
 import           Data.Attoparsec.Text
 import           Data.ByteString.Lazy (readFile)
-import           Data.HashMap.Strict  ()
+import           Data.HashMap.Strict  as Map
 import           Data.HashSet         ()
 import           Data.HashSet         as Set
-import           Data.Monoid
-import           Data.String          (IsString (..))
-import           Data.Text            (Text, intercalate, pack, unpack)
+import           Data.Text            as Text (Text, intercalate, pack, unpack)
 import           MTLPrelude
 import           Path.Parse
-import           Prelude              hiding (print, putStr, putStrLn, readFile)
 import qualified Turtle
 
 --------------------------------------------------------------------------------
@@ -60,6 +60,18 @@ getConfig section key = snd <$> Turtle.procStrict "git" ["config", mkKey section
 --------------------------------------------------------------------------------
 -- ** Scheme
 
+setScheme :: (MonadThrow m, MonadIO m) => Text -> AppT m ()
+setScheme scheme =
+  mapScheme scheme $ \cfgs ->
+    do _ <- traverseWithKey (traverseWithKey . setConfig) cfgs
+       addScheme scheme
+
+unsetScheme :: (MonadThrow m, MonadIO m) => Text -> AppT m ()
+unsetScheme scheme =
+  mapScheme scheme $ \cfgs ->
+    do _ <- traverseWithKey (traverseWithKey . (-$) unsetConfig) cfgs
+       removeScheme scheme
+
 getSchemes :: (MonadThrow m, MonadIO m) => AppT m (HashSet Text)
 getSchemes =
   do raw <- getConfig "gcm" "scheme"
@@ -78,7 +90,7 @@ removeScheme scheme =
      setSchemes $ Set.delete scheme schemes
 
 setSchemes :: (MonadThrow m, MonadIO m) => HashSet Text -> AppT m ()
-setSchemes = setConfig "gcm" "scheme" . String . intercalate ", " . Set.toList
+setSchemes = setConfig "gcm" "scheme" . String . Text.intercalate ", " . Set.toList
 
 pScheme :: Parser Text
 pScheme = pack <$> many1 (letter <|> digit)
@@ -124,3 +136,17 @@ extractConfig _ = Nothing
 prettyBool :: IsString a => Bool -> a
 prettyBool True = "true"
 prettyBool False = "false"
+
+lookupScheme :: (Monad m) => Text -> AppT m (Maybe ConfigMap)
+lookupScheme scheme = liftM (Map.lookup scheme) askGitConfig
+
+mapScheme :: (MonadThrow m, MonadIO m) => Text -> (ConfigMap -> AppT m a) -> AppT m a
+mapScheme scheme f =
+  lookupScheme scheme >>= \case
+    Nothing -> askConfigPath >>= throwM . GCMSchemeNotFound (unpack scheme)
+    Just cfgs -> f cfgs
+
+(-$) :: (a -> b -> d) -> a -> b -> c -> d
+f -$ a = \b _ -> f a b
+
+infixl 8 -$

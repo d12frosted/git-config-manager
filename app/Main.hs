@@ -15,12 +15,12 @@ import           Types
 --------------------------------------------------------------------------------
 -- * External imports
 
-import           BasePrelude
+import           BasePrelude         hiding (putStrLn)
 import           Control.Monad.Catch (MonadThrow (..))
 import           Data.HashMap.Strict as Map
 import           Data.HashSet        as Set
 import           Data.Text           (Text, pack, unpack)
-import qualified Data.Text.IO        as T (putStr, putStrLn)
+import           Data.Text.IO        (putStrLn)
 import           MTLPrelude
 import           Options.Applicative
 
@@ -51,8 +51,8 @@ run (AppOptions verbose pathM cmd) =
      runReaderT (runCmd cmd) (AppConfig verbose path cfg)
 
 runCmd :: AppCmd -> AppIO ()
-runCmd AppCmdList = askGitConfig >>= lift . mapM_ T.putStrLn . keys
-runCmd AppCmdGet = getSchemes >>= lift . mapM_ T.putStrLn . Set.toList
+runCmd AppCmdList = askGitConfig >>= lift . mapM_ putStrLn . keys
+runCmd AppCmdGet = getSchemes >>= lift . mapM_ putStrLn . Set.toList
 runCmd (AppCmdSet scheme) =
   mapScheme scheme $ \cfgs ->
     do _ <- traverseWithKey (traverseWithKey . setConfig) cfgs

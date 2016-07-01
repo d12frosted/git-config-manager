@@ -42,19 +42,19 @@ setConfig section key val =
   case val of
     Null -> unsetConfig section key
     _ -> case extractConfig val of
-      Just cfg -> configProcs [section <> "." <> key, cfg]
+      Just cfg -> configProcs [mkKey section key, cfg]
       Nothing  -> throwM $ GCMConfigTypeNotSupported (unpack section) (unpack key) val
 
 unsetConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> m ()
 unsetConfig section key =
-  do configProcs ["--unset", section <> "." <> key]
+  do configProcs ["--unset", mkKey section key]
      (res, _) <- Turtle.procStrict "git" ["config", "--get-regexp", "--local", "^" <> section <> "\\."] Turtle.empty
      case res of
        Turtle.ExitFailure 1 -> configProcs ["--remove-section", section]
        _ -> return ()
 
 getConfig :: (MonadIO m) => Text -> Text -> m Text
-getConfig section key = snd <$> Turtle.procStrict "git" ["config", section <> "." <> key] Turtle.empty
+getConfig section key = snd <$> Turtle.procStrict "git" ["config", mkKey section key] Turtle.empty
 
 --------------------------------------------------------------------------------
 -- ** Scheme
@@ -107,6 +107,9 @@ getDefaultConfigPath = parseFilePath "$XDG_CONFIG_HOME/git/git-config-manager.js
 
 --------------------------------------------------------------------------------
 -- * Helpers
+
+mkKey :: Text -> Text -> Text
+mkKey s k = s <> "." <> k
 
 configProcs :: (MonadThrow m, MonadIO m) => [Text] -> m ()
 configProcs args = Turtle.procs "git" ("config" : args) Turtle.empty

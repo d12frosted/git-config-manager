@@ -4,9 +4,13 @@
 {-# LANGUAGE TemplateHaskell    #-}
 
 module Git ( GitConfig (..)
+           , SchemeMap
+           , ConfigMap
            , set
            , unset
            , get
+           , addScheme
+           , removeScheme
            , loadConfig
            , getConfigPath
            ) where
@@ -19,15 +23,20 @@ import           Types
 --------------------------------------------------------------------------------
 -- * External imports
 
+import           Control.Applicative    ((<|>))
 import           Control.Monad.Catch    (MonadThrow (..))
 import           Control.Monad.IO.Class
 import           Data.Aeson
 import           Data.Aeson.TH
+import           Data.Attoparsec.Text
 import           Data.ByteString.Lazy   (readFile)
+import           Data.HashMap.Strict    ()
 import           Data.HashMap.Strict    as Map
+import           Data.HashSet           ()
+import           Data.HashSet           as Set
+import           Data.Monoid
 import           Data.String            (IsString (..))
-import           Data.Text              (Text, pack, unpack)
-import           Options.Applicative
+import           Data.Text              (Text, intercalate, pack, unpack)
 import           Path.Parse
 import           Prelude                hiding (print, putStr, putStrLn,
                                          readFile)
@@ -36,8 +45,8 @@ import qualified Turtle
 --------------------------------------------------------------------------------
 -- * Data types
 
-type ConfigMap = (Map.HashMap Text Object)
-type SchemeMap = Map.HashMap Text ConfigMap
+type ConfigMap = (HashMap Text Object)
+type SchemeMap = HashMap Text ConfigMap
 data GitConfig = GitConfig SchemeMap deriving Show
 
 $(deriveJSON defaultOptions ''GitConfig)
@@ -63,6 +72,36 @@ unset section key =
 
 get :: (MonadIO m) => Text -> Text -> m Text
 get section key = snd <$> Turtle.procStrict "git" ["config", section <> "." <> key] Turtle.empty
+
+--------------------------------------------------------------------------------
+-- ** Scheme
+
+getSchemes :: (MonadThrow m, MonadIO m) => m (HashSet Text)
+getSchemes =
+  do raw <- get "gcm" "scheme"
+     case parseOnly pSchemes raw of
+       Right val -> return $ Set.fromList val
+       Left err -> throwM $ GCMSchemesParseError err
+
+addScheme :: (MonadThrow m, MonadIO m) => Text -> m ()
+addScheme scheme =
+  do schemes <- getSchemes
+     setSchemes $ Set.insert scheme schemes
+
+removeScheme :: (MonadThrow m, MonadIO m) => Text -> m ()
+removeScheme scheme =
+  do schemes <- getSchemes
+     setSchemes $ Set.delete scheme schemes
+
+setSchemes :: (MonadThrow m, MonadIO m) => HashSet Text -> m ()
+setSchemes = set "gcm" "scheme" . String . intercalate ", " . Set.toList
+
+pScheme :: Parser Text
+pScheme = pack <$> many1 (letter <|> digit)
+
+pSchemes :: Parser [Text]
+pSchemes = pScheme `sepBy` sep
+  where sep = many' space >> char ',' >> many' space
 
 --------------------------------------------------------------------------------
 -- * Loading

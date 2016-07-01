@@ -29,7 +29,8 @@ data AppConfig = AppConfig { appVerbose    :: Bool
 data GCMException =
   GCMParseError (Path Abs File) String |
   GCMSchemeNotFound (Path Abs File) String |
-  GCMConfigTypeNotSupported String String Value
+  GCMConfigTypeNotSupported String String Value |
+  GCMSchemesParseError String
   deriving (Typeable)
 
 instance Exception GCMException
@@ -41,6 +42,8 @@ instance Show GCMException where
     "Could not find scheme '" ++ scheme ++ "' in '" ++ toFilePath path ++ "'"
   show (GCMConfigTypeNotSupported section key val) =
     "Found value of unsupported type '" ++ showValueType val ++ "' at '" ++ section ++ "." ++ key ++ "'"
+  show (GCMSchemesParseError err) =
+    "Could not parse schemes with error: " ++ err
 
 --------------------------------------------------------------------------------
 -- * Helpers

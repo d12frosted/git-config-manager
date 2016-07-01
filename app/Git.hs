@@ -113,10 +113,10 @@ loadConfig path =
        Left msg -> throwM $ GCMParseError path msg
        Right cfg -> return cfg
 
-getConfigPath :: (MonadThrow m, MonadIO m) => Maybe String -> m (Path Abs File)
-getConfigPath fileStrM =
-  case fileStrM of
-    Just fileStr -> parseFilePath . pack $ fileStr
+getConfigPath :: (MonadThrow m, MonadIO m) => Maybe Text -> m (Path Abs File)
+getConfigPath pathM =
+  case pathM of
+    Just path -> parseFilePath path
     Nothing -> getDefaultConfigPath
 
 getDefaultConfigPath :: (MonadThrow m, MonadIO m) => m (Path Abs File)

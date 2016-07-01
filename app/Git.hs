@@ -4,6 +4,7 @@
 module Git ( setConfig
            , unsetConfig
            , getConfig
+           , getSchemes
            , addScheme
            , removeScheme
            , loadConfig

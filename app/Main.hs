@@ -1,6 +1,6 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Main ( main
             , AppOptions(..)
@@ -15,13 +15,14 @@ import           Types
 --------------------------------------------------------------------------------
 -- * External imports
 
+import           BasePrelude
 import           Control.Monad.Catch (MonadThrow (..))
 import           Data.HashMap.Strict as Map
+import           Data.HashSet        as Set
 import           Data.Text           (Text, pack, unpack)
 import qualified Data.Text.IO        as T (putStr, putStrLn)
+import           MTLPrelude
 import           Options.Applicative
-import           BasePrelude
-import MTLPrelude
 
 --------------------------------------------------------------------------------
 -- * Data types
@@ -51,7 +52,7 @@ run (AppOptions verbose pathM cmd) =
 
 runCmd :: AppCmd -> AppIO ()
 runCmd AppCmdList = askGitConfig >>= lift . mapM_ T.putStrLn . keys
-runCmd AppCmdGet = getConfig "gcm" "scheme" >>= lift . T.putStr
+runCmd AppCmdGet = getSchemes >>= lift . mapM_ T.putStrLn . Set.toList
 runCmd (AppCmdSet scheme) =
   mapScheme scheme $ \cfgs ->
     do _ <- traverseWithKey (traverseWithKey . setConfig) cfgs
@@ -74,7 +75,7 @@ configParser =
     switch (long "verbose" <> help "Enable verbose mode") <*>
     optional (txtOption $ long "config-file" <> metavar "PATH" <> help "Specify configuration file path") <*>
     subparser (command "list" (info (pure AppCmdList) (progDesc "List all available configuration schemes")) <>
-               command "get" (info (pure AppCmdGet) (progDesc "Get comma-separated list of currently used schemes")) <>
+               command "get" (info (pure AppCmdGet) (progDesc "Get list of currently used schemes")) <>
                command "set" (info (AppCmdSet . pack <$> argument str (metavar "SCHEME")) (progDesc "Set up configurations by scheme")) <>
                command "unset" (info (AppCmdUnset . pack <$> argument str (metavar "SCHEME")) (progDesc "Unset configurations by scheme")))
 

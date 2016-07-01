@@ -65,7 +65,7 @@ set section key val =
 unset :: (MonadThrow m, MonadIO m) => Text -> Text -> m ()
 unset section key =
   do configProcs ["--unset", section <> "." <> key]
-     (res, _) <- Turtle.procStrict "git" ["config", "--get-regexp", "^" <> section <> "\\."] Turtle.empty
+     (res, _) <- Turtle.procStrict "git" ["config", "--get-regexp", "--local", "^" <> section <> "\\."] Turtle.empty
      case res of
        Turtle.ExitFailure 1 -> configProcs ["--remove-section", section]
        _ -> return ()

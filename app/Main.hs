@@ -1,8 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
-module Main (main
-            ,AppOptions(..)) where
+module Main ( main
+            , AppOptions(..)
+            ) where
 
 --------------------------------------------------------------------------------
 -- * Internal imports
@@ -19,6 +21,7 @@ import           Data.Text           (Text, pack, unpack)
 import qualified Data.Text.IO        as T (putStr, putStrLn)
 import           Options.Applicative
 import           BasePrelude
+import MTLPrelude
 
 --------------------------------------------------------------------------------
 -- * Data types
@@ -43,18 +46,18 @@ main = execParser opts >>= run
 run :: AppOptions -> IO ()
 run (AppOptions verbose pathM cmd) =
   do path <- getConfigPath pathM
-     gitConfig <- loadConfig path
-     runCmd cmd (AppConfig verbose path) gitConfig
+     cfg <- loadConfig path
+     runReaderT (runCmd cmd) (AppConfig verbose path cfg)
 
-runCmd :: AppCmd -> AppConfig -> GitConfig -> IO ()
-runCmd AppCmdList _ (GitConfig cfg) = mapM_ T.putStrLn $ keys cfg
-runCmd AppCmdGet _ _ = getConfig "gcm" "scheme" >>= T.putStr
-runCmd (AppCmdSet scheme) appCfg cfg =
-  mapScheme scheme appCfg cfg $ \cfgs ->
+runCmd :: AppCmd -> AppIO ()
+runCmd AppCmdList = askGitConfig >>= lift . mapM_ T.putStrLn . keys
+runCmd AppCmdGet = getConfig "gcm" "scheme" >>= lift . T.putStr
+runCmd (AppCmdSet scheme) =
+  mapScheme scheme $ \cfgs ->
     do _ <- traverseWithKey (traverseWithKey . setConfig) cfgs
        addScheme scheme
-runCmd (AppCmdUnset scheme) appCfg cfg =
-  mapScheme scheme appCfg cfg $ \cfgs ->
+runCmd (AppCmdUnset scheme) =
+  mapScheme scheme $ \cfgs ->
     do _ <- traverseWithKey (traverseWithKey . (-$) unsetConfig) cfgs
        removeScheme scheme
 
@@ -78,13 +81,13 @@ configParser =
 --------------------------------------------------------------------------------
 -- * Helpers
 
-lookupScheme :: Text -> GitConfig -> Maybe ConfigMap
-lookupScheme scheme (GitConfig cfg) = Map.lookup scheme cfg
+lookupScheme :: (Monad m) => Text -> ReaderT AppConfig m (Maybe ConfigMap)
+lookupScheme scheme = liftM (Map.lookup scheme) askGitConfig
 
-mapScheme :: Text -> AppConfig -> GitConfig -> (ConfigMap -> IO a) -> IO a
-mapScheme scheme appCfg cfg f =
-  case lookupScheme scheme cfg of
-    Nothing -> throwM $ GCMSchemeNotFound (appConfigFile appCfg) (unpack scheme)
+mapScheme :: Text -> (ConfigMap -> AppIO a) -> AppIO a
+mapScheme scheme f =
+  lookupScheme scheme >>= \case
+    Nothing -> askConfigPath >>= throwM . GCMSchemeNotFound (unpack scheme)
     Just cfgs -> f cfgs
 
 (-$) :: (a -> b -> d) -> a -> b -> c -> d

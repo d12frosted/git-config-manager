@@ -1,12 +1,7 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE NoImplicitPrelude  #-}
 {-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TemplateHaskell    #-}
 
-module Git ( GitConfig (..)
-           , SchemeMap
-           , ConfigMap
-           , setConfig
+module Git ( setConfig
            , unsetConfig
            , getConfig
            , addScheme
@@ -24,13 +19,11 @@ import           Types
 -- * External imports
 
 import           Control.Applicative  ((<|>))
-import           Control.Monad.Catch  (MonadThrow (..))
 import           Data.Aeson
-import           Data.Aeson.TH
+import           Control.Monad.Catch  (MonadThrow (..))
 import           Data.Attoparsec.Text
 import           Data.ByteString.Lazy (readFile)
 import           Data.HashMap.Strict  ()
-import           Data.HashMap.Strict  as Map
 import           Data.HashSet         ()
 import           Data.HashSet         as Set
 import           Data.Monoid
@@ -40,15 +33,6 @@ import           MTLPrelude
 import           Path.Parse
 import           Prelude              hiding (print, putStr, putStrLn, readFile)
 import qualified Turtle
-
---------------------------------------------------------------------------------
--- * Data types
-
-type ConfigMap = (HashMap Text Object)
-type SchemeMap = HashMap Text ConfigMap
-data GitConfig = GitConfig SchemeMap deriving Show
-
-$(deriveJSON defaultOptions ''GitConfig)
 
 --------------------------------------------------------------------------------
 -- * Operations

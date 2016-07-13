@@ -71,3 +71,21 @@ $ git clone https://github.com/d12frosted/git-config-manager.git
 $ cd git-config-manager
 $ stack install
 #+END_SRC
+
+* ~Magit~ interface
+
+Git configuration manager comes with =magit= interface. It just adds new section
+to status buffer. All available actions are available under ~C~ key. In order to
+set configuration scheme selected desired scheme and press ~C s~. In order to
+unset it - ~C u~.
+
+** Install
+
+While package is not available on MELPA, one can install it using ~quelpa~.
+After ~magit-gcm~ is available on your ~load-path~, just add following snippet
+to your ~init.el~.
+
+#+BEGIN_SRC emacs-lisp
+(require 'magit-gcm)
+(add-hook 'magit-mode-hook 'turn-on-magit-gcm)
+#+END_SRC

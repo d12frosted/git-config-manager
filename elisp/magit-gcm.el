@@ -24,6 +24,8 @@
 ;;
 ;; (require 'magit-gcm)
 ;; (add-hook 'magit-mode-hook 'turn-on-magit-gcm)
+;;
+;; Note that for this to work you have to install git-config-manager executable.
 
 ;;; Code:
 ;;
@@ -83,8 +85,8 @@ When it's nil, default one is used.")
 
 (defun magit-gcm-insert-gcm ()
   "Insert git-config-manager section to magit status buffer."
-  (let ((active (magit-gcm--get-active-schemes))
-        (all (magit-gcm--get-available-schemes)))
+  (let ((active (magit-gcm-get-active-schemes))
+        (all (magit-gcm-get-available-schemes)))
     (magit-insert-section (gcm)
         (magit-insert-heading "Git Config Manager:")
       (dolist (scheme all)
@@ -104,7 +106,7 @@ When it's nil, default one is used.")
   (interactive)
   (magit-section-case
     (inactive-scheme
-     (progn (magit-gcm--exec "set" (magit-section-value (magit-current-section)))
+     (progn (magit-gcm-exec "set" (magit-section-value (magit-current-section)))
             (magit-refresh)))
     (t
      (error "Invalid target."))))
@@ -114,7 +116,7 @@ When it's nil, default one is used.")
   (interactive)
   (magit-section-case
     (active-scheme
-     (progn (magit-gcm--exec "unset" (magit-section-value (magit-current-section)))
+     (progn (magit-gcm-exec "unset" (magit-section-value (magit-current-section)))
             (magit-refresh)))
     (t
      (error "Invalid target."))))
@@ -124,15 +126,15 @@ When it's nil, default one is used.")
   (interactive)
   (error "Not yet implemented. Sorry about that."))
 
-(defun magit-gcm--get-active-schemes ()
+(defun magit-gcm-get-active-schemes ()
   "Get list of all active schemes."
-  (split-string (magit-gcm--exec "get")))
+  (split-string (magit-gcm-exec "get")))
 
-(defun magit-gcm--get-available-schemes ()
+(defun magit-gcm-get-available-schemes ()
   "Get list of all available schemes."
-  (split-string (magit-gcm--exec "list")))
+  (split-string (magit-gcm-exec "list")))
 
-(defun magit-gcm--exec (command &rest args)
+(defun magit-gcm-exec (command &rest args)
   "Execute git-config-manager COMMAND with ARGS.
 
 Passes `magit-gcm-config-file' as config file when it's non-nil."

@@ -58,8 +58,9 @@ Available options:
 
 Available commands:
   list                     List all available configuration schemes
-  get                      Get name of currently used scheme
+  get                      Get list of currently used schemes
   set                      Set up configurations by scheme
+  unset                    Unset configurations by scheme
 #+END_EXAMPLE
 
 ** Install
@@ -89,3 +90,24 @@ to your ~init.el~.
 (require 'magit-gcm)
 (add-hook 'magit-mode-hook 'turn-on-magit-gcm)
 #+END_SRC
+
+** Configure
+
+There are several configuration variables available to users.
+
+- ~magit-gcm-exectuable~ - by default it searches for executable in PATH. If for
+  some reason it can't be found or you just wish to manually specify it - set
+  this variable.
+- ~magit-gcm-config-file~ - by default it's ~nil~, which means that ~magit-gcm~
+  will not pass configuration file path to ~git-config-manager~, so the default
+  configuration file will be used. But in some cases it might be useful to
+  manually set this variable.
+- ~magit-gcm-mode-lighter~ - mode line lighter for ~magit-gcm-mode~.
+
+For convenience, ~magit-gcm~ exposes several utility functions.
+
+- ~magit-gcm-exec~ - for executing ~git-config-manager~ commands.
+- ~magit-gcm-get-active-schemes~ - returns list of currently activated
+  configuration schemes.
+- ~magit-gcm-get-available-schemes~ - returns list of all available
+  configuration schemes.

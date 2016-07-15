@@ -73,11 +73,8 @@ unsetScheme scheme =
        removeScheme scheme
 
 getSchemes :: (MonadThrow m, MonadIO m) => AppT m (HashSet Text)
-getSchemes =
-  do raw <- getConfig "gcm" "scheme"
-     case parseOnly pSchemes raw of
-       Right val -> return $ Set.fromList val
-       Left err -> throwM $ GCMSchemesParseError err
+getSchemes = getConfig "gcm" "scheme" >>=
+  either (throwM . GCMSchemesParseError) (return . Set.fromList) . parseOnly pSchemes
 
 addScheme :: (MonadThrow m, MonadIO m) => Text -> AppT m ()
 addScheme scheme =
@@ -103,17 +100,11 @@ pSchemes = pScheme `sepBy` sep
 -- * Loading
 
 loadConfig :: (MonadThrow m, MonadIO m) => Path Abs File -> m GitConfig
-loadConfig path =
-  do contents <- liftIO . readFile . toFilePath $ path
-     case eitherDecode' contents of
-       Left msg -> throwM $ GCMParseError path msg
-       Right cfg -> return cfg
+loadConfig path = (liftIO . readFile . toFilePath $ path) >>=
+  either (throwM . GCMParseError path) return . eitherDecode'
 
 getConfigPath :: (MonadThrow m, MonadIO m) => Maybe Text -> m (Path Abs File)
-getConfigPath pathM =
-  case pathM of
-    Just path -> parseFilePath path
-    Nothing -> getDefaultConfigPath
+getConfigPath = maybe getDefaultConfigPath parseFilePath
 
 getDefaultConfigPath :: (MonadThrow m, MonadIO m) => m (Path Abs File)
 getDefaultConfigPath = parseFilePath "$XDG_CONFIG_HOME/git/git-config-manager.json"
@@ -141,10 +132,8 @@ lookupScheme :: (Monad m) => Text -> AppT m (Maybe ConfigMap)
 lookupScheme scheme = liftM (Map.lookup scheme) askGitConfig
 
 mapScheme :: (MonadThrow m, MonadIO m) => Text -> (ConfigMap -> AppT m a) -> AppT m a
-mapScheme scheme f =
-  lookupScheme scheme >>= \case
-    Nothing -> askConfigPath >>= throwM . GCMSchemeNotFound (unpack scheme)
-    Just cfgs -> f cfgs
+mapScheme scheme f = lookupScheme scheme >>= maybe complain f
+  where complain = askConfigPath >>= throwM . GCMSchemeNotFound (unpack scheme)
 
 (-$) :: (a -> b -> d) -> a -> b -> c -> d
 f -$ a = \b _ -> f a b

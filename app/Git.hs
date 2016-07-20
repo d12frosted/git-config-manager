@@ -34,6 +34,7 @@ import           Data.Text            as Text (Text, intercalate, pack, unpack)
 import           MTLPrelude
 import           Path.Parse
 import qualified Turtle
+import           Turtle ((.&&.))
 
 --------------------------------------------------------------------------------
 -- * Operations
@@ -47,12 +48,10 @@ setConfig section key val =
       Nothing  -> throwM $ GCMConfigTypeNotSupported (unpack section) (unpack key) val
 
 unsetConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> AppT m ()
-unsetConfig section key =
-  do configProcs ["--unset", mkKey section key]
-     (res, _) <- Turtle.procStrict "git" ["config", "--get-regexp", "--local", "^" <> section <> "\\."] Turtle.empty
-     case res of
-       Turtle.ExitFailure 1 -> configProcs ["--remove-section", section]
-       _ -> return ()
+unsetConfig section key = void $
+  configProc ["--unset",mkKey section key] .&&.
+  expectCode (ExitFailure 1) (configProc ["--get-regexp", "--local", "^" <> section <> "\\."]) .&&.
+  configProc ["--remove-section", section]
 
 getConfig :: (MonadIO m) => Text -> Text -> AppT m Text
 getConfig section key = snd <$> Turtle.procStrict "git" ["config", mkKey section key] Turtle.empty
@@ -117,6 +116,13 @@ mkKey s k = s <> "." <> k
 
 configProcs :: (MonadThrow m, MonadIO m) => [Text] -> m ()
 configProcs args = Turtle.procs "git" ("config" : args) Turtle.empty
+
+configProc :: (MonadThrow m, MonadIO m) => [Text] -> m ExitCode
+configProc args = fst <$> Turtle.procStrict "git" ("config" : args) Turtle.empty
+
+expectCode :: (Monad m) => ExitCode -> m ExitCode -> m ExitCode
+expectCode expected action = trans <$> action
+  where trans code = if code == expected then ExitSuccess else code
 
 extractConfig :: Value -> Maybe Text
 extractConfig (String val) = Just val

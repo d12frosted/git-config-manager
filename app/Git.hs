@@ -44,17 +44,17 @@ setConfig section key val =
   case val of
     Null -> unsetConfig section key
     _ -> case extractConfig val of
-      Just cfg -> configProcs [mkKey section key, cfg]
+      Just cfg -> procs [mkKey section key, cfg]
       Nothing  -> throwM $ GCMConfigTypeNotSupported (unpack section) (unpack key) val
 
 unsetConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> AppT m ()
 unsetConfig section key = void $
-  configProc ["--unset",mkKey section key] .&&.
-  expectCode (ExitFailure 1) (configProc ["--get-regexp", "--local", "^" <> section <> "\\."]) .&&.
-  configProc ["--remove-section", section]
+  proc ["--unset",mkKey section key] .&&.
+  expectCode (ExitFailure 1) (proc ["--get-regexp", "--local", "^" <> section <> "\\."]) .&&.
+  proc ["--remove-section", section]
 
-getConfig :: (MonadIO m) => Text -> Text -> AppT m Text
-getConfig section key = snd <$> Turtle.procStrict "git" ["config", mkKey section key] Turtle.empty
+getConfig :: (MonadThrow m, MonadIO m) => Text -> Text -> AppT m Text
+getConfig section key = snd <$> procStrict [mkKey section key]
 
 --------------------------------------------------------------------------------
 -- ** Scheme
@@ -114,11 +114,14 @@ getDefaultConfigPath = parseFilePath "$XDG_CONFIG_HOME/git/git-config-manager.js
 mkKey :: Text -> Text -> Text
 mkKey s k = s <> "." <> k
 
-configProcs :: (MonadThrow m, MonadIO m) => [Text] -> m ()
-configProcs args = Turtle.procs "git" ("config" : args) Turtle.empty
+proc :: (MonadThrow m, MonadIO m) => [Text] -> m ExitCode
+proc = fmap fst . procStrict
 
-configProc :: (MonadThrow m, MonadIO m) => [Text] -> m ExitCode
-configProc args = fst <$> Turtle.procStrict "git" ("config" : args) Turtle.empty
+procs :: (MonadThrow m, MonadIO m) => [Text] -> m ()
+procs = void . procStrict
+
+procStrict :: (MonadThrow m, MonadIO m) => [Text] -> m (ExitCode, Text)
+procStrict args = Turtle.procStrict "git" ("config" : args) Turtle.empty
 
 expectCode :: (Monad m) => ExitCode -> m ExitCode -> m ExitCode
 expectCode expected action = trans <$> action

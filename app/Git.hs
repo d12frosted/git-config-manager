@@ -86,7 +86,10 @@ removeScheme scheme =
      setSchemes $ Set.delete scheme schemes
 
 setSchemes :: (MonadThrow m, MonadIO m) => HashSet Text -> AppT m ()
-setSchemes = setConfig "gcm" "scheme" . String . Text.intercalate ", " . Set.toList
+setSchemes set =
+  if Set.null set
+  then unsetConfig "gcm" "scheme"
+  else setConfig "gcm" "scheme" . String . Text.intercalate ", " . Set.toList $ set
 
 pScheme :: Parser Text
 pScheme = pack <$> many1 (letter <|> digit)
